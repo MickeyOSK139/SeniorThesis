@@ -1,0 +1,272 @@
+%++++++++++++++++++++++++++++++++++++++++
+% Don't modify this section unless you know what you're doing!
+\documentclass[letterpaper,12pt]{article}
+\usepackage{tabularx} % extra features for tabular environment
+\usepackage{amsmath}  % improve math presentation
+\usepackage{graphicx} % takes care of graphic including machinery
+\usepackage[margin=1in,letterpaper]{geometry} % decreases margins
+\usepackage{cite} % takes care of citations
+\usepackage{breqn}
+\usepackage[final]{hyperref} % adds hyper links inside the generated pdf file
+\hypersetup{
+	colorlinks=true,       % false: boxed links; true: colored links
+	linkcolor=blue,        % color of internal links
+	citecolor=blue,        % color of links to bibliography
+	filecolor=magenta,     % color of file links
+	urlcolor=blue         
+}
+%++++++++++++++++++++++++++++++++++++++++
+
+
+\begin{document}
+
+\title{%
+  An Overview of the equations used in Astroresearch 2019 }
+\author{Brennen Quigley}
+\date{\today}
+\maketitle
+
+
+\section{Runge Kutta}
+Suppose we had a system of coupled first order Differential Equations in the following form:
+
+\begin{align*} 
+\frac{du}{dx} = f(u,v,x) \\ 
+\frac{dv}{dx} = g(u,v,x)
+\end{align*}
+
+with the given inition condition of $x = x_{0}$. Now suppose we wanted to know the values of u and v at a given value $x+h$. Provided with the step size of h, we can calculate that values using the 4th order Runge Kutta integration method:
+
+\begin{align*} 
+u_{n+1} = u_{n} + \frac{1}{6}(K_{1}+2K_{2}+2K_{3}+K_{4}) \\ 
+v_{n+1} = v_{n} + \frac{1}{6}(L_{1}+2L_{2}+2L_{3}+L_{4})
+\end{align*}
+Where we have:
+
+
+\begin{align*} 
+K_{1} = h*f(u_{0}, v_{0}, x_{0})\\ 
+K_{2} = h*f(u_{0}+\frac{1}{2}K_{1}, v_{0} + \frac{1}{2}L_{1}, x_{0} + \frac{1}{2}h\\
+K_{3} = h*f(u_{0}+\frac{1}{2}K_{2}, v_{0} + \frac{1}{2}L_{2}, x_{0} + \frac{1}{2}h\\
+K_{4} = h*f(u_{0}+K_{3}, v_{0} + L_{3}, x_{0} + h)
+\end{align*}
+
+And:
+\begin{align*} 
+L_{1} = h*g(u_{0}, v_{0}, x_{0})\\ 
+L_{2} =h*g(u_{0}+\frac{1}{2}K_{1}, v_{0} + \frac{1}{2}L_{1}, x_{0} + \frac{1}{2}h\\
+L_{3} =h*g(u_{0}+\frac{1}{2}K_{2}, v_{0} + \frac{1}{2}L_{2}, x_{0} + \frac{1}{2}h\\
+L_{4} =h*g(u_{0}+K_{3}, v_{0} + L_{3}, x_{0} + h)
+\end{align*}
+
+\section{Potentials}
+
+The system that we are dealing with currently is a 3 body system with masses $m_{1}$, $m_{2}$, and $m_{3}$. The motion of these bodies is given by the following potentials. The units that we are operating in are solar radii, solar mass, and days.
+
+Note: to simplify these equations, I have used the following shorthands:
+
+\begin{equation}
+    r_{12} = ((x_{1} - x_{2})^{2} + (y_{1} - y_{2})^{2} + (z_{1} - z_{2})^{2})^{\frac{1}{2}}
+\end{equation}
+\begin{equation}
+    r_{23} = ((x_{2} - x_{3})^{2} + (y_{2} - y_{3})^{2} + (z_{2} - z_{3})^{2})^{\frac{1}{2}}
+\end{equation}
+\begin{equation}
+    r_{13} = ((x_{1} - x_{3})^{2} + (y_{1} - y_{3})^{2} + (z_{1} - z_{3})^{2})^{\frac{1}{2}}
+\end{equation}
+\begin{equation}
+    G = 2945.49 R_{\odot}^{3}M_{\odot}^{-1}days^{-2}
+\end{equation}
+    
+
+
+Motion of $m_{1}$:
+\begin{equation}
+\begin{cases}
+\hspace{0.22em} x_{1}^{'} = u_{1}\\
+y_{1}^{'} = v_{1}\\
+z_{1}^{'} = w_{1}\\
+v_{1}^{'} = G*[\frac{m_{2}(x_{2}-x_{1})}{r_{12}^{3}}+\frac{m_{3}(x_{3}-x_{1})}{r_{13}^{3}}]\\
+u_{1}^{'} =G*[\frac{m_{2}(y_{2}-y_{1})}{r_{12}^{3}}+\frac{m_{3}(y_{3}-y_{1})}{r_{13}^{3}}]\\
+w_{1}^{'} =G*[\frac{m_{2}(z_{2}-z_{1})}{r_{12}^{3}}+\frac{m_{3}(z_{3}-z_{1})}{r_{13}^{3}}]\\
+
+\end{cases}
+\label{eq:potential}
+\end{equation}
+
+Motion of $m_{2}$:
+\begin{equation}
+\begin{cases}
+\hspace{0.22em} x_{2}^{'} = u_{2}\\
+y_{2}^{'} = v_{2}\\
+z_{2}^{'} = w_{2}\\
+v_{2}^{'} = G*[\frac{m_{1}(x_{1}-x_{2})}{r_{12}^{3}}+\frac{m_{3}(x_{3}-x_{2})}{r_{23}^{3}}]\\
+u_{2}^{'} =G*[\frac{m_{1}(y_{1}-y_{2})}{r_{12}^{3}}+\frac{m_{3}(y_{3}-y_{2})}{r_{23}^{3}}]\\
+w_{2}^{'} =G*[\frac{m_{1}(z_{1}-z_{2})}{r_{12}^{3}}+\frac{m_{3}(z_{3}-z_{2})}{r_{23}^{3}}]\\
+\end{cases}
+\label{eq:potential}
+\end{equation}
+
+Motion of $m_{3}$:
+\begin{equation}
+\begin{cases}
+\hspace{0.22em} x_{3}^{'} = u_{3}\\
+y_{3}^{'} = v_{3}\\
+z_{3}^{'} = w_{3}\\
+v_{3}^{'} = G*[\frac{m_{2}(x_{2}-x_{3})}{r_{23}^{3}}+\frac{m_{1}(x_{1}-x_{3})}{r_{13}^{3}}]\\
+u_{3}^{'} =G*[\frac{m_{2}(y_{2}-y_{3})}{r_{23}^{3}}+\frac{m_{1}(y_{1}-y_{3})}{r_{13}^{3}}]\\
+w_{3}^{'} =G*[\frac{m_{2}(z_{2}-z_{3})}{r_{23}^{3}}+\frac{m_{1}(z_{1}-z_{3})}{r_{13}^{3}}]\\
+\end{cases}
+\label{eq:potential}
+\end{equation}
+
+\section{Positions and Velocities}
+
+The above potentials of our system would be simple to use if we were given initial positions and initial velocities of the 3 bodies of interest. However, that is not really reflective of the systems we are interested in. The systems that we are interested are systems in which $m_{1}$ and $m_{2}$ orbit each other in a close binary with the third mass orbiting this inner binary at a further distance. Essentially, what we have is a system of nested binaries with $m_{1}$ and $m_{2}$ making up the inner binary and the outer binary consisting of $m_{3}$ orbiting essentially a point mass of $m_{1} + m_{2}$. 
+
+Therefore, the most natural initial conditions of our study are explicit initial positions and initial velocities. Instead, we will be inputting the initial separation of the inner binary and the eccentricity of that orbit, as well as the initial separation of the center of mass of the inner binary from the third mass and the eccentricity of that orbit. These values are denoted $a_{1}$, $e_{1}$, $a_{2}$, and $e_{2}$ respectively. Further, the third body may be elevated relative to the inner binary by an angle i and may be out of line with the inner binary by an angle $\theta$ The initial positions and the initial velocities can then be computed if we set the origin to be the global center of mass of the entire system.
+
+Quick shorthand:
+\begin{equation}
+M = m_{1} + m_{2} +m_{3}
+\end{equation}
+
+Magnitude of the Velocity of the center of mass of the Inner Binary:
+
+\begin{equation}
+\textbf{V} = \sqrt{(G*m_{3}^{2}*(1-e_{2}))/(a_{2}*M)}
+\end{equation}
+
+Initial Positions of $m_{1}$:
+
+\begin{equation}
+\begin{cases}
+\hspace{0.22em} x_{1} = (-(a_{1}*m_{2})/(m_{1}+m_{2}))-cos(\theta)*cos(i)*a_{2}*(m_{3}/M)\\
+y_{1} = -sin(\theta)*cos(i)*a_{2}*(m_{3}/M)\\
+z_{1} = -sin(i)*a_{2}*(m_{3}/M)\\
+u_{1} = \textbf{V}*sin(\theta)\\
+v_{1} = -\sqrt{G*m_{2}^{2}*(1-e_{1})/(a_{1}*(m_{2}+m_{1}))}-\textbf{V}*cos(\theta)\\
+w_{1} = 0
+\end{cases}
+\label{eq:potential}
+\end{equation}
+
+Initial Positions of $m_{2}$:
+
+\begin{equation}
+\begin{cases}
+\hspace{0.22em} x_{2} = (m_{1}*a_{1})/(m_{1} + m_{2})-cos(\theta)*cos(i)*a_{2}*(M_{3}/M)\\
+y_{2} = -sin(\theta)*cos(i)*a_{2}*(m_{3}/M)\\
+z_{2} = -sin(i)*a_{2}*(m_{3}/M)\\
+u_{2} = -\textbf{V}*sin(\theta)\\
+v_{2} = \sqrt{G*m_{1}^{2}*(1-e_{1})/(a_{1}*(m_{2}+m_{1}))}-\textbf{V}*cos(\theta)\\
+w_{2} = 0
+\end{cases}
+\label{eq:potential}
+\end{equation}
+
+Initial Positions of $m_{3}$:
+
+\begin{equation}
+\begin{cases}
+\hspace{0.22em} x_{3} = cos(\theta)*a_{2}*cos(i)*(m_{1}+m_{2})/M\\
+y_{3} = sin(\theta)*a_{2}*cos(i)*(m_{1}+m_{2})/M\\
+z_{3} = a_{2}*sin(i)*(m_{1}+m_{2})/M\\
+u_{3} = \sqrt{G*(m_{1}+m_{2})^{2}*(1-e_{2})/(a_{2}*M)}*sin(\theta)\\
+v_{3} = \sqrt{G*(m_{1}+m_{2})^{2}*(1-e_{2})/(a_{2}*M)}*cos(\theta)\\
+w_{3} = 0
+\end{cases}
+\label{eq:potential}
+\end{equation}
+
+\section{Energies and Angular Momentum}
+The total energy and angular momentum of all three bodies is given by:
+
+\begin{equation} \label{eq:ergo}
+    E = \frac{1}{2}m_{1}\textbf{V}_{1}^{2}+\frac{1}{2}m_{2}\textbf{V}_{2}^{2}+\frac{1}{2}m_{3}\textbf{V}_{3}^{2} - \frac{Gm_{1}m_{2}}{r_{12}} - \frac{Gm_{1}m_{3}}{r_{13}} - \frac{Gm_{2}m_{3}}{r_{23}}
+\end{equation}
+
+\begin{equation}
+    L = \Vec{r}_{1}\times m_{1}*\Vec{V}_{1}+\Vec{r}_{2}\times m_{2}*\Vec{V}_{2}+\Vec{r}_{3}\times m_{3}*\Vec{V}_{3}
+\end{equation}
+
+Where we are using the short hands:
+\begin{equation}
+    G = 2945.49 R_{\odot}^{3}M_{\odot}^{-1}days^{-2}
+\end{equation}
+\begin{equation}
+    r_{12} = ((x_{1} - x_{2})^{2} + (y_{1} - y_{2})^{2} + (z_{1} - z_{2})^{2})^{\frac{1}{2}}
+\end{equation}
+\begin{equation}
+    r_{23} = ((x_{2} - x_{3})^{2} + (y_{2} - y_{3})^{2} + (z_{2} - z_{3})^{2})^{\frac{1}{2}}
+\end{equation}
+\begin{equation}
+    r_{13} = ((x_{1} - x_{3})^{2} + (y_{1} - y_{3})^{2} + (z_{1} - z_{3})^{2})^{\frac{1}{2}}
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \textbf{V}_{1} = \sqrt{u_{1}^{2} + v_{1}^{2} + w_{1}^{2}}
+\end{equation}
+\begin{equation} \label{eq:ergo}
+    \textbf{V}_{2} = \sqrt{u_{2}^{2} + v_{2}^{2} + w_{2}^{2}}
+\end{equation}
+\begin{equation} \label{eq:ergo}
+    \textbf{V}_{3} = \sqrt{u_{3}^{2} + v_{3}^{2} + w_{3}^{2}}
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{r}_{1} = [x_{1}, y_{1}, z_{1}]
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{r}_{2} = [x_{2}, y_{2}, z_{2}]
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{r}_{3} = [x_{3}, y_{3}, z_{3}]
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{V}_{1} = [u_{1}, v_{1}, w_{1}]
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{V}_{2} = [u_{2}, v_{2}, w_{2}]
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{V}_{3} = [u_{3}, v_{3}, w_{3}]
+\end{equation}
+
+\section{Energies and Angular Momentum of Individual Binaries}
+
+We can also calculate the energy and angular momentum of the inner binary ($m_{1}$ and $m_{2}$) and the outer binary ($m_{3}$ and $m_{1}+m_{2}$).
+
+\begin{equation} \label{eq:ergo}
+    E_{1} = \frac{1}{2}m_{1}||\Vec{V}_{1}-\Vec{VCM}||^{2}+\frac{1}{2}m_{2}||\Vec{V}_{2}-\Vec{VCM}||^{2} - \frac{Gm_{1}m_{2}}{r_{12}}
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    E_{2} = \frac{1}{2}(m_{1}+m_{2})||\Vec{VCM}||^{2}+\frac{1}{2}m_{3}||\Vec{V}_{3}||^{2} - \frac{G(m_{1}+m_{2})m_{3}}{||\Vec{r}_{3}-\Vec{CM}||}
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    L_{1} = (\Vec{r}_{1}-\Vec{CM})\times m_{1}(\Vec{V}_{1}-\Vec{VCM}))+(\Vec{r}_{2}-\Vec{CM})\times m_{2}(\Vec{V}_{2}-\Vec{VCM}))
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    L_{2} = \Vec{CM} \times (m_{1}+m_{2})\Vec{VCM}+\Vec{r}_{3}\times m_{3}\Vec{V}_{3} 
+\end{equation}
+
+Where in addition to the short hands above we are using:
+\begin{equation} \label{eq:ergo}
+    \Vec{CM} = \frac{m_{1}\Vec{r}_{1}+m_{2}\Vec{r}_{2}}{m_{1}+m_{2}}
+\end{equation}
+
+\begin{equation} \label{eq:ergo}
+    \Vec{VCM} = \frac{m_{2}\Vec{V}_{1}+m_{2}\Vec{V}_{2}}{m_{1}+m_{2}}
+\end{equation}
+
+Where $\Vec{CM}$ is the position of the center of mass of the inner binary and $\Vec{VCM}$ is the velocity of that center of mass.
+
+\end{document}
