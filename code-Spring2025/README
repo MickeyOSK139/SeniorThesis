@@ -1,0 +1,51 @@
+Installing packages in julia:
+
+    1. Press ] key to get into package mode.
+    2. Type "add NAMEOFPACKAGE"
+    3. "status: shows all teh added packages
+    4. DELETE gets you out of package mode
+
+Running shell commands in julia
+   julia> run(`ls`)
+
+
+1. NestedBinaryFinal_Fast.jl
+The top-level function is Master.  It takes in input file (example sample.txt)
+  m_1, m_2, M_donor
+  a_in, e_in, a_out, e_out, theta, i
+  t_tot (in units of inner binary period), timestep setting, stability percentage (e.g. 5=5%)
+
+Determines whether or not this system is stable.
+
+TO RUN IT
+        > julia
+   julia> include("NestedBinaryFinal_Fast.jl")
+   julia> Master('sample.txt')
+
+2. NestedBinaryFinal_Write.jl
+Same as NestedBinaryFinal_Fast.jl but writes info about every timestep????  Currently does not run
+
+3. AutomaticTester.jl
+
+The top-level function is StabilityFinder. It takes in the masses and
+the inner binary separation of a desired nested binary configuration
+and returns the smallest such outer binary separation such that the
+system remains stable over the desired time period. This time period
+is defaulted to 100P of the inner binary. This can easily be adjusted
+by changing this value in the `AutomaticTester.jl` file and reloading
+the file. This program will also stores the stable separation in
+`StabilityConditions.xlsx`.
+
+To run, for example: 
+
+   julia> StabilityFinder([8,8,1],7.2,0,5)
+
+
+4. AutoLooper.jl
+
+Finds the smallest stable outer binary separation for the triple
+with specified masses for a range of inner binary separations
+between a1 and a1_fin.  The results are stored in `StabilityConditions.xlsx`.
+
+To run, for example: 
+    julia> Looper([1.5, 1.5, 1], 2, 40)
