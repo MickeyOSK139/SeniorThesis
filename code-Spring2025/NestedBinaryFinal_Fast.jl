@@ -1,15 +1,15 @@
 using Pkg
-#Pkg.add(url="https://github.com/timholy/ProgressMeter.jl.git")
-#Pkg.add("ProgressMeter")
-#using ProgressMeter
-#Pkg.add(url="https://github.com/felipenoris/XLSX.jl.git")
-# Pkg.add(PackageSpec(url ="https://github.com/timholy/ProgressMeter.jl.git"))
-# Pkg.add("ProgressMeter")
+Pkg.add(url="https://github.com/timholy/ProgressMeter.jl.git")
+Pkg.add("ProgressMeter")
 using ProgressMeter
-# Pkg.add(PackageSpec(url ="https://github.com/felipenoris/XLSX.jl.git"))
-# Pkg.add("XLSX")
+Pkg.add(url="https://github.com/felipenoris/XLSX.jl.git")
+Pkg.add(PackageSpec(url ="https://github.com/timholy/ProgressMeter.jl.git"))
+Pkg.add("ProgressMeter")
+using ProgressMeter
+Pkg.add(PackageSpec(url ="https://github.com/felipenoris/XLSX.jl.git"))
+Pkg.add("XLSX")
 import XLSX
-# Pkg.add("Crayons")
+
 using Crayons
 
 const G = 2945.49 #gravitational constant, making this const greatly reduces memory usage
@@ -95,11 +95,11 @@ function fileInput(file) #change initial conditions to m1, m2, semi-major axis, 
 	mArray = parse.(Float64,split(readlines(file)[1],",")) #this inputs the masses of the bodies
 	XArray = parse.(Float64,split(readlines(file)[2],",")) #this inputs the initial conditions of the bodies
 
-	if length(XArray) != 6 && length(XArray) != 9 #this makes sure that each body has 6 entries: a position and velocity in the x, y, and z direction. 
+	if length(XArray) != 7 && length(XArray) != 10 #this makes sure that each body has 6 entries: a position and velocity in the x, y, and z direction. 
 		error("Invalid input: wrong number of initial conditions; go back and check the input.")
 	end
 
-	numBodies = (length(XArray)/6)+2 #this is different than the number of masses, because the test particle counts as a massless body here
+	numBodies = (length(XArray)/7)+2 #this is different than the number of masses, because the test particle counts as a massless body here
 
 	if numBodies == 3 #so, here, we either have three massive bodies or two massive bodies with a test particle
 		push!(fArray, f1A, f2A, f3A, f4A, f5A, f6A, f1B, f2B, f3B, f4B, f5B, f6B, f1C, f2C, f3C, f4C, f5C, f6C) #these are the functions we need for that
@@ -150,22 +150,23 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 	A2 = x[3]
 	e1 = x[2]
 	e2 = x[4]
-	Θ = x[5]
-	i = x[6]
+	ϕi = x[5]
+	ϕo = x[6]
+	i = x[7]
 
-	X1 = (-(A1*M2)/(M1+M2))-cosd(Θ)*cosd(i)*A2*(M3/M) #keeps track of the first body's x coordinate
-	X2 = ((M1*A1)/(M1 + M2))-cosd(Θ)*cosd(i)*A2*(M3/M) #similar for these
-	X3 = cosd(Θ)*A2*cosd(i)*(M1+M2)/M 
-	Y1 = -sind(Θ)*cosd(i)*A2*(M3/M)
-	Y2 = -sind(Θ)*cosd(i)*A2*(M3/M)
-	Y3 = sind(Θ)*A2*cosd(i)*(M1+M2)/M
-	Z1 = -sind(i)*A2*(M3/M)
-	Z2 = -sind(i)*A2*(M3/M)
-	Z3 = A2*sind(i)*(M1+M2)/M
+	X1 = (-(A1*(1 + e1)*M2)/(M1 + M2))*cosd(ϕi)-cosd(ϕo)*cosd(i)*A2*(1+e2)*(M3/M) #keeps track of the first body's x coordinate
+	X2 = ((A1*(1 + e1)*M1)/(M1 + M2))*cosd(ϕi)-cosd(ϕo)*cosd(i)*(1+e2)*A2*(M3/M) #similar for these
+	X3 = cosd(ϕo)*cosd(i)*A2*(1+e2)*(M1+M2)/M 
+	Y1 = (-(A1*(1 + e1)*M2)/(M1 + M2))*sind(ϕi)-sind(ϕo)*A2*(1+e2)*(M3/M)
+	Y2 = ((A1*(1 + e1)*M1)/(M1 + M2))*sind(ϕi)-sind(ϕo)*A2*(1+e2)*(M3/M)
+	Y3 = sind(ϕo)*A2*(1+e2)*(M1+M2)/M
+	Z1 = -sind(i)*cosd(ϕo)*(1 + e1)*A2*(M3/M)
+	Z2 = -sind(i)*cosd(ϕo)*(1 + e1)*A2*(M3/M)
+	Z3 = A2*(1 + e2)*sind(i)*cosd(ϕo)*(M1+M2)/M
 	if numBodies == 4
-		X4 = x[7]
-		Y4 = x[8]
-		Z4 = x[9]
+		X4 = x[8]
+		Y4 = x[9]
+		Z4 = x[10]
 	end
 
 	R₁X = X1
@@ -190,21 +191,21 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 	R₂₃X = R₂X-R₃X
 	R₂₃Y = R₂Y-R₃Y
 	R₂₃Z = R₂Z-R₃Z
-	velocityM3 = sqrt(G*(M1+M2)^2*(1-e2)/(A2*M)) 
-	velocityM1M2 = sqrt((G*(M3^2)*(1-e2))/(A2*M)) #velocity of inner CM
-	V₁X = velocityM1M2*sind(Θ)
-	V₁Y = -sqrt(G*(M2^2)*(1-e1)/(A1*(M2+M1)))-velocityM1M2*cosd(Θ)
-	V₁Z = 0.0
-	V₂X = velocityM1M2*sind(Θ)
-	V₂Y = sqrt(G*(M1^2)*(1-e1)/(A1*(M2+M1)))-velocityM1M2*cosd(Θ)
-	V₂Z = 0.0
-	V₃X = -velocityM3*sind(Θ)
-	V₃Y = velocityM3*cosd(Θ)
-	V₃Z = 0.0
+	velocityM3 = sqrt(G*(M1+M2)^2*(1-e2)/(A2*M*(1+e2))) 
+	velocityM1M2 = sqrt((G*(M3^2)*(1-e2))/(A2*M*(1+e2))) #velocity of inner CM
+	V₁X = sqrt(G*(M2^2)*(1-e1)/(A1*(M2+M1)*(1+e1)))*sind(ϕi) + velocityM1M2*sind(ϕo)*cosd(i) 
+	V₁Y = -sqrt(G*(M2^2)*(1-e1)/(A1*(M2+M1)*(1+e1)))*cosd(ϕi) - velocityM1M2*cosd(ϕo)
+	V₁Z = velocityM1M2*sind(ϕo)*sind(i)
+	V₂X = -sqrt(G*(M1^2)*(1-e1)/(A1*(M2+M1)*(1+e1)))*sind(ϕi) + velocityM1M2*sind(ϕo)*cosd(i) 
+	V₂Y = sqrt(G*(M1^2)*(1-e1)/(A1*(M2+M1)*(1+e1)))*cosd(ϕi) - velocityM1M2*cosd(ϕo)
+	V₂Z = velocityM1M2*sind(ϕo)*sind(i)
+	V₃X = -velocityM3*cosd(i)*sind(ϕo)
+	V₃Y = velocityM3*cosd(ϕo)
+	V₃Z = -velocityM3*sind(ϕo)*sind(i)
 	if numBodies>3
-		V₄X = x[7]
-		V₄Y = x[8]
-		V₄Z = x[9]
+		V₄X = x[8]
+		V₄Y = x[9]
+		V₄Z = x[10]
 	end
 
 	V₁₂X = V₁X-V₂X
@@ -668,4 +669,4 @@ function f6D(x::Array{Float64,1}, m::Array{Float64,1}) #w4
 	return g1/(r1^3) + g2/(r2^3) + g3/(r3^3)
 end
 
-# Master("sample.txt")
+Master("sample.txt")
