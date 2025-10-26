@@ -1,25 +1,66 @@
+cd("code-fall2025")
 using Pkg
-Pkg.add(url="https://github.com/timholy/ProgressMeter.jl.git")
-Pkg.add("ProgressMeter")
-using ProgressMeter
-Pkg.add(url="https://github.com/felipenoris/XLSX.jl.git")
+# Pkg.add(url="https://github.com/timholy/ProgressMeter.jl.git")
+# Pkg.add("ProgressMeter")
+# using ProgressMeter
+# Pkg.add(url="https://github.com/felipenoris/XLSX.jl.git")
 Pkg.add(PackageSpec(url ="https://github.com/timholy/ProgressMeter.jl.git"))
 Pkg.add("ProgressMeter")
 using ProgressMeter
 Pkg.add(PackageSpec(url ="https://github.com/felipenoris/XLSX.jl.git"))
 Pkg.add("XLSX")
 import XLSX
-
+Pkg.add("PyPlot")
+using Plots
 using Crayons
 
-const G = 2945.49 #gravitational constant, making this const greatly reduces memory usage
+################################################################################
+# NestedBinaryFinal_Fast.jl
+#
+# Fast RK4 integrator for hierarchical triple systems (optionally with a
+# massless test particle). This file contains the high-level entry point
+# `Master`, the file parser `fileInput`, the integrator `System`, and the
+# RK4 implementation `RK4` plus the force component functions f1A..f6D.
+#
+# Notes:
+# - Units are chosen so that the gravitational constant G = 2945.49 (units
+#   are consistent with the original project and input files).
+# - The code was written to be memory-conscious: different `MemorySave`
+#   modes control how much time-series data is retained.
+# - Main outputs include stability diagnostics, energy and angular momentum
+#   conservation checks, and PNG orbit/diagnostic plots.
+################################################################################
+
+const G = 2945.49 # gravitational constant (project-specific units)
 
 #NOTE: old code said it was semi-major axes, but it was separations
 "Inputs a file and retrieves the necessary information from the file. This includes the masses of the bodies and their initial conditions."
 
+"""
+Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="hybrid") -> (record, dataFileExists, rowNumber, stability)
+
+High-level convenience function. Reads an input configuration file, runs the
+integration via `System`, prints stability diagnostics, optionally records
+results to a spreadsheet, and saves several diagnostic plots (inner and
+outer orbits, inclination vs time, angular momentum components vs time).
+
+Arguments
+- file: path to a .txt input describing the system (see README for format)
+- Break: boolean controlling some plotting behavior (keeps compatibility with
+	older scripts)
+- fileSave: optional base name to save a text snapshot of simulation data
+- writeData: if 0 (default) attempt to append results to an XLSX workbook
+- MemorySave: mode controlling how much time-series data to keep
+
+Returns
+- record: whether the run was recorded to the spreadsheet
+- dataFileExists: whether the spreadsheet existed prior to saving
+- rowNumber: the row in the spreadsheet where the record was written
+- stability: integer flag (1 stable, 0 unstable)
+"""
 function Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="hybrid") #This is the highest level function in this file. Plotting L, E, or positions over time, type "L" or "E" to plot those and type a color to plot the orbits
 	#Elist, Llist, lList, Tlist, X1, X2, X3, X4, Y1, Y2, Y3, Y4, Z1, Z2, Z3, Z4, numBodies, hParam, v1x, v1y, v1z, v2x, v2y, v2z, v3x, v3y, v3z, v4x, v4y, v4z, OriginalX, t0, E₁list, E₂list, L₁list, L₂list, periods, timesteps = System(file, fileSave, MemorySave)
-	m, OriginalX, numBodies, timeTaken, hParam, t0, periods, timesteps, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax = System(file, fileSave, Break, MemorySave)
+	m, OriginalX, numBodies, timeTaken, hParam, t0, periods, timesteps, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax, E₁exp, E₂exp, L₁exp, L₂exp, X1arr, Y1arr, Z1arr, X2arr, Y2arr, Z2arr, X3arr, Y3arr, Z3arr, i1arr, i2arr, iarr, Lxarr, Lyarr, Lzarr, tarr = System(file, fileSave, Break, MemorySave)
 
 	#=stability calculation=#
 	println("\n")
@@ -29,14 +70,18 @@ function Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="
 	println("This ran in $timeTaken seconds.")
 	#println("This took $timesteps timesteps to simulate.")
 	println("The inner binary energy was $E₁0 and varied from $E₁min to $E₁max")
+	println("The expected inner binary energy is $E₁exp")
 	println("The inner binary momentum was $L₁0 and varied from $L₁min to $L₁max")
+	println("The expected inner binary momentum is $L₁exp")
 	println("The outer binary energy was $E₂0 and varied from $E₂min to $E₂max")
+	println("The expected outer binary energy is $E₂exp")
 	println("The outer binary momentum was $L₂0 and varied from $L₂min to $L₂max")
+	println("The expected outer binary momentum is $L₂exp")
 	record = true
 	dataFileExists = true
 	rowNumber = 0
 	if writeData == 0
-		XLSX.openxlsx("NestedBinaryData.xlsx",mode="rw") do xf
+		XLSX.openxlsx("NestedBinaryData_New.xlsx",mode="rw") do xf
 			sheet = xf[1]
 			i = 1
 			while typeof(sheet["A$i"]) != Missing #gets next blank row
@@ -55,39 +100,74 @@ function Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="
 				sheet["E$i"] = OriginalX[2]
 				sheet["F$i"] = OriginalX[3]
 				sheet["G$i"] = OriginalX[4]
-				sheet["H$i"] = OriginalX[6]
-				sheet["I$i"] = OriginalX[5]
+				sheet["H$i"] = OriginalX[5]
+				sheet["I$i"] = OriginalX[6]
+				sheet["J$i"] = OriginalX[7]
 				if periods == true
-					sheet["J$i"] = t0
+					sheet["K$i"] = t0
 				else
-					sheet["J$i"] = string(chop(periods), " periods")
+					sheet["K$i"] = string(chop(periods), " periods")
 				end
-				sheet["K$i"] = hParam
-				sheet["L$i"] = "[$Emin,$Emax]"
-				sheet["M$i"] = "[[$(LminX),$(LminY),$(LminZ)],[$(LmaxX),$(LmaxY),$(LmaxZ)]]"
-				sheet["N$i"] = "[$E₁min,$E₁max]"
-				sheet["O$i"] = "[$E₂min,$E₂max]"
-				sheet["P$i"] = "[[$(L₁minX),$(L₁minY),$(L₁minZ)],[$(L₁maxX),$(L₁maxY),$(L₁maxZ)]]"
-				sheet["Q$i"] = "[[$(L₂minX),$(L₂minY),$(L₂minZ)],[$(L₂maxX),$(L₂maxY),$(L₂maxZ)]]"
-				sheet["R$i"] = timeTaken
-				sheet["S$i"] = "[$lmin,$lmax]"
-				sheet["T$i"] = stability
-				sheet["U$i"] = rowNumber
+				sheet["L$i"] = hParam
+				sheet["M$i"] = "[$Emin,$Emax]"
+				sheet["N$i"] = "[[$(LminX),$(LminY),$(LminZ)],[$(LmaxX),$(LmaxY),$(LmaxZ)]]"
+				sheet["O$i"] = "[$E₁min,$E₁max]"
+				sheet["P$i"] = "[$E₂min,$E₂max]"
+				sheet["Q$i"] = "[[$(L₁minX),$(L₁minY),$(L₁minZ)],[$(L₁maxX),$(L₁maxY),$(L₁maxZ)]]"
+				sheet["R$i"] = "[[$(L₂minX),$(L₂minY),$(L₂minZ)],[$(L₂maxX),$(L₂maxY),$(L₂maxZ)]]"
+				sheet["S$i"] = timeTaken
+				sheet["T$i"] = "[$lmin,$lmax]"
+				sheet["U$i"] = stability
+				sheet["V$i"] = rowNumber
 				if Emin<-10.0^-3 || Emax>10.0^-3
-					sheet["V$i"] = 0
+					sheet["W$i"] = 0
 				else
-					sheet["V$i"] = 1
+					sheet["W$i"] = 1
 				end
-				sheet["W$i"] = timesteps
+				sheet["X$i"] = timesteps
+				sheet["Y$i"] = first(i1arr)
+				sheet["Z$i"] = first(i2arr)
+				sheet["AA$i"] = first(iarr)
 			end
 		end
 	end
 	if MemorySave=="all"
 		dataFileExists = false
 	end
+	pout = plot(X3arr, Y3arr, Z3arr)
+	pin = plot(X1arr, Y1arr, Z1arr)
+	plot!(pin, X2arr, Y2arr, Z2arr)
+	savefig(pout, "OuterOrbit.png")
+	savefig(pin, "InnerOrbit.png")
+	pI1 = plot(tarr, i1arr)
+	plot!(pI1, tarr, i2arr)
+	plot!(pI1, tarr, iarr)
+	savefig(pI1, "PlotInc.png")
+	pL = plot(tarr, Lxarr)
+	plot!(pL, tarr, Lyarr)
+	plot!(pL, tarr, Lzarr)
+	savefig(pL, "PlotL.png")
+
 	return record, dataFileExists, rowNumber, stability #used for autotester
 end
 
+"""
+fileInput(file) -> (fArray, XArray, mArray, t, hParam, percent, numBodies, notPeriods)
+
+Parses a .txt configuration file and converts it to the internal arrays used
+by the integrator. The function returns:
+- fArray: array of derivative functions (force/kinematic components)
+- XArray: numeric parameters read from the file (orbital elements / angles)
+- mArray: mass array (may include a 0 mass for a test particle)
+- t: target integration time (in the same time units as the file)
+- hParam: timestep scaling parameter
+- percent: tolerance used for stability checks (as percentage)
+- numBodies: inferred number of bodies (3 or 4)
+- notPeriods: boolean or string indicating whether t was provided in periods
+
+This function validates input lengths and converts period notation (e.g.
+"10P") into absolute time when needed.
+"""
 function fileInput(file) #change initial conditions to m1, m2, semi-major axis, e, 
 #= This function inputs a .txt file and extracts data from it to get the inputs needed for NestedBinary =#
 	fArray = Function[] #we need differential functions to calculate new positions and velocities with each timestep. These functions will be stored in this array. What functions are entered depends on how many bodies we are working with.
@@ -127,6 +207,18 @@ function fileInput(file) #change initial conditions to m1, m2, semi-major axis, 
 end
 
 "Inputs a file (that is a triple system) and numerically calculates the system's energy and angular momentum versus time, as well as the bodies' positions versus time."
+"""
+System(file, fileSave, Break, MemorySave="hybrid") -> many values
+
+Main integration routine. Reads the parsed input from `fileInput`, constructs
+the initial positions and velocities for the hierarchical triple (or triple
+plus test particle), then integrates forward in time with adaptive-ish
+timestep control based on current separations and relative velocities.
+
+Outputs include many diagnostic quantities: energy/angular-momentum extrema,
+arrays of positions and inclination angles over time, runtime and stability
+flag, and the final state vector.
+"""
 function System(file, fileSave, Break, MemorySave="hybrid")
 	#this is the main function that integrates with RK4 and returns the final positions (as well as arrays with information we can plot)
 	#For MemorySave, "none" means it saves all data points, "hybrid" means it saves significant ones, and "all" means it records no data points
@@ -156,18 +248,38 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 
 	X1 = (-(A1*(1 + e1)*M2)/(M1 + M2))*cosd(ϕi)-cosd(ϕo)*cosd(i)*A2*(1+e2)*(M3/M) #keeps track of the first body's x coordinate
 	X2 = ((A1*(1 + e1)*M1)/(M1 + M2))*cosd(ϕi)-cosd(ϕo)*cosd(i)*(1+e2)*A2*(M3/M) #similar for these
-	X3 = cosd(ϕo)*cosd(i)*A2*(1+e2)*(M1+M2)/M 
+	X3 = cosd(ϕo)*cosd(i)*A2*(1+e2)*q
 	Y1 = (-(A1*(1 + e1)*M2)/(M1 + M2))*sind(ϕi)-sind(ϕo)*A2*(1+e2)*(M3/M)
 	Y2 = ((A1*(1 + e1)*M1)/(M1 + M2))*sind(ϕi)-sind(ϕo)*A2*(1+e2)*(M3/M)
-	Y3 = sind(ϕo)*A2*(1+e2)*(M1+M2)/M
+	Y3 = sind(ϕo)*A2*(1+e2)*q
 	Z1 = -sind(i)*cosd(ϕo)*(1 + e1)*A2*(M3/M)
 	Z2 = -sind(i)*cosd(ϕo)*(1 + e1)*A2*(M3/M)
-	Z3 = A2*(1 + e2)*sind(i)*cosd(ϕo)*(M1+M2)/M
+	Z3 = A2*(1 + e2)*sind(i)*cosd(ϕo)*q
 	if numBodies == 4
 		X4 = x[8]
 		Y4 = x[9]
 		Z4 = x[10]
 	end
+
+	tarr = []
+	X1arr = []
+	X2arr = []
+	X3arr = []
+	Y1arr = []
+	Y2arr = []
+	Y3arr = []
+	Z1arr = []
+	Z2arr = []
+	Z3arr = []
+	Earr = []
+	Larr = []
+	Lxarr = []
+	Lyarr = []
+	Lzarr = []
+	i1arr = []
+	i2arr = []
+	iarr = []
+	
 
 	R₁X = X1
 	R₁Y = Y1
@@ -229,13 +341,19 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 	LZ = m[1]*(R₁X*V₁Y-R₁Y*V₁X)+m[2]*(R₂X*V₂Y-R₂Y*V₂X)+m[3]*(R₃X*V₃Y-R₃Y*V₃X)
 	
 	E₁ = .5*m[1]*sqrt((V₁X-VINCMX)^2+(V₁Y-VINCMY)^2+(V₁Z-VINCMZ)^2)^2+.5*m[2]*sqrt((V₂X-VINCMX)^2+(V₂Y-VINCMY)^2+(V₂Z-VINCMZ)^2)^2 - G*m[1]*m[2]/sqrt(R₁₂X^2+R₁₂Y^2+R₁₂Z^2)#Energy of inner binary
+	E₁exp = -.5*G*m[1]*m[2]/A1
 	E₂ = .5*(m[1]+m[2])*sqrt(VINCMX^2+VINCMY^2+VINCMZ^2)^2+.5*m[3]*sqrt(V₃X^2+V₃Y^2+V₃Z^2)^2 - G*(m[1]+m[2])*m[3]/(sqrt((R₃X)^2+(R₃Y)^2+(R₃Z)^2)+sqrt((CM₁₂X)^2+(CM₁₂Y)^2+(CM₁₂Z)^2))#Energy of outer binary
+	E₂exp = -.5*G*(m[1]+m[2])*m[3]/A2
 	L₁X = m[1]*((R₁Y-CM₁₂Y)*(V₁Z-VINCMZ)-(R₁Z-CM₁₂Z)*(V₁Y-VINCMY))+m[2]*((R₂Y-CM₁₂Y)*(V₂Z-VINCMZ)-(R₂Z-CM₁₂Z)*(V₂Y-VINCMY))
 	L₁Y = m[1]*((R₁Z-CM₁₂Z)*(V₁X-VINCMX)-(R₁X-CM₁₂X)*(V₁Z-VINCMZ))+m[2]*((R₂Z-CM₁₂Z)*(V₂X-VINCMX)-(R₂X-CM₁₂X)*(V₂Z-VINCMZ))
 	L₁Z = m[1]*((R₁X-CM₁₂X)*(V₁Y-VINCMY)-(R₁Y-CM₁₂Y)*(V₁X-VINCMX))+m[2]*((R₂X-CM₁₂X)*(V₂Y-VINCMY)-(R₂Y-CM₁₂Y)*(V₂X-VINCMX))
+	mu12 = m[1]*m[2]/(m[1]+m[2])
+	L₁exp = mu12*sqrt(G*(m[1]+m[2])*A1*(1-e1^2))
 	L₂X = (m[1]+m[2])*(CM₁₂Y*VINCMZ-CM₁₂Z*VINCMY)+m[3]*(R₃Y*V₃Z-R₃Z*V₃Y)
 	L₂Y = (m[1]+m[2])*(CM₁₂Z*VINCMX-CM₁₂X*VINCMZ)+m[3]*(R₃Z*V₃X-R₃X*V₃Z)
 	L₂Z = (m[1]+m[2])*(CM₁₂X*VINCMY-CM₁₂Y*VINCMX)+m[3]*(R₃X*V₃Y-R₃Y*V₃X)
+	muio = M3*q
+	L₂exp = muio*sqrt(G*M*A2*(1-e2^2))
 
 	t0 = 0.0
 
@@ -318,6 +436,15 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 		V₃X = x[16]
 		V₃Y = x[17]
 		V₃Z = x[18]
+		push!(X1arr, R₁X - (M1*R₁X+M2*R₂X)/(M1+M2)) #Push position into an array
+		push!(Y1arr, R₁Y - (M1*R₁Y+M2*R₂Y)/(M1+M2))
+		push!(Z1arr, R₁Z - (M1*R₁Z+M2*R₂Z)/(M1+M2))
+		push!(X2arr, R₂X - (M1*R₁X+M2*R₂X)/(M1+M2))
+		push!(Y2arr, R₂Y - (M1*R₁Y+M2*R₂Y)/(M1+M2))
+		push!(Z2arr, R₂Z - (M1*R₁Z+M2*R₂Z)/(M1+M2))
+		push!(X3arr, x[13])
+		push!(Y3arr, x[14])
+		push!(Z3arr, x[15])
 		R₁₂X = R₁X-R₂X
 		R₁₂Y = R₁Y-R₂Y
 		R₁₂Z = R₁Z-R₂Z
@@ -338,13 +465,15 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 		V₂₃Z = V₂Z-V₃Z
 		K = .5*m[1]*(V₁X^2+V₁Y^2+V₁Z^2)+.5*m[2]*(V₂X^2+V₂Y^2+V₂Z^2)+.5*m[3]*(V₃X^2+V₃Y^2+V₃Z^2) #overall kinetic energy
 		U = -(G*m[1]*m[2]/sqrt(R₁₂X^2+R₁₂Y^2+R₁₂Z^2)+G*m[1]*m[3]/sqrt(R₁₃X^2+R₁₃Y^2+R₁₃Z^2)+G*m[2]*m[3]/sqrt(R₂₃X^2+R₂₃Y^2+R₂₃Z^2)) #total gravitational potential energy
-		E = K + U #total energy 
-		E = (E-E0)/E0
+		Etot = K + U #total energy 
+		E = (Etot-E0)/E0 #fractional energy difference
+		push!(Earr, E)
 		LX = m[1]*(R₁Y*V₁Z-R₁Z*V₁Y)+m[2]*(R₂Y*V₂Z-R₂Z*V₂Y)+m[3]*(R₃Y*V₃Z-R₃Z*V₃Y)
 		LY = m[1]*(R₁Z*V₁X-R₁X*V₁Z)+m[2]*(R₂Z*V₂X-R₂X*V₂Z)+m[3]*(R₃Z*V₃X-R₃X*V₃Z)
 		LZ = m[1]*(R₁X*V₁Y-R₁Y*V₁X)+m[2]*(R₂X*V₂Y-R₂Y*V₂X)+m[3]*(R₃X*V₃Y-R₃Y*V₃X)
-		L = sqrt(LX^2+LY^2+LZ^2)
-		L = (L-L0)/L0
+		Ltot = sqrt(LX^2+LY^2+LZ^2)
+		L = (Ltot-L0)/L0 #fractional angular momentum difference
+		push!(Larr, L)
 		if L > Lmax
 			LmaxX = LX
 			LmaxY = LY
@@ -362,6 +491,7 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 			Emin = E
 		end
 		t0 = t0 + h #advances time, should this be defined by after the next few lines?
+		# push!(tarr, t0)
 		h1 = sqrt(R₁₂X^2+R₁₂Y^2+R₁₂Z^2)/sqrt(V₁₂X^2+V₁₂Y^2+V₁₂Z^2)
 		h2 = sqrt(R₁₃X^2+R₁₃Y^2+R₁₃Z^2)/sqrt(V₁₃X^2+V₁₃Y^2+V₁₃Z^2)
 		h3 = sqrt(R₂₃X^2+R₂₃Y^2+R₂₃Z^2)/sqrt(V₂₃X^2+V₂₃Y^2+V₂₃Z^2)
@@ -399,9 +529,22 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 			L₂X = (m[1]+m[2])*(CM₁₂Y*VINCMZ-CM₁₂Z*VINCMY)+m[3]*(R₃Y*V₃Z-R₃Z*V₃Y)
 			L₂Y = (m[1]+m[2])*(CM₁₂Z*VINCMX-CM₁₂X*VINCMZ)+m[3]*(R₃Z*V₃X-R₃X*V₃Z)
 			L₂Z = (m[1]+m[2])*(CM₁₂X*VINCMY-CM₁₂Y*VINCMX)+m[3]*(R₃X*V₃Y-R₃Y*V₃X)
+			push!(Lxarr, L₁X+L₂X)
+			push!(Lyarr, L₁Y+L₂Y)
+			push!(Lzarr, L₁Z+L₂Z)
 			L₁ = sqrt(L₁X^2+L₁Y^2+L₁Z^2)
+			i1 = acosd(L₁Z/L₁)
+			# i1 = L₁Z/L₁
+			push!(i1arr, i1)
 			#L₁ = (L₁-L₁0)/L₁X0
 			L₂ = sqrt(L₂X^2+L₂Y^2+L₂Z^2)
+			i2 = acosd(L₂Z/L₂)
+			# i2 = L₂Z/L₂
+			push!(i2arr, i2)
+			imutual = acosd((L₁X*L₂X+L₁Y*L₂Y+L₁Z*L₂Z)/(L₁*L₂))
+			# imutual = (L₁X*L₂X+L₁Y*L₂Y+L₁Z*L₂Z)/(L₁*L₂)
+			push!(iarr, imutual)
+			push!(tarr, t0)
 			#L₂ = (L₂-L₂0)/L₂0
 			#=L₁X = (L₁X-L₁X0)/L₁X0
 			L₁Y = (L₁Y-L₁Y0)/L₁Y0 
@@ -468,9 +611,18 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 		stability = 1
 	end
 	NowTime = time()
-	return m, OriginalX, numBodies, NowTime-firstTime, hParam, t0, periods, counter, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax
+	return m, OriginalX, numBodies, NowTime-firstTime, hParam, t0, periods, counter, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax, E₁exp, E₂exp, L₁exp, L₂exp, X1arr, Y1arr, Z1arr, X2arr, Y2arr, Z2arr, X3arr, Y3arr, Z3arr, i1arr, i2arr, iarr, Lxarr, Lyarr, Lzarr, tarr
 end
 
+"""
+RK4(f, x, m, h) -> x_next
+
+Classic fourth-order Runge–Kutta integrator. `f` is an array of functions
+representing the right-hand side of the system (dx/dt values for each
+component). `x` is the current state vector and `m` is the mass array (passed
+through to the derivative functions). Returns the state after one step of
+size h.
+"""
 function RK4(f,x,m,h)
 #Inputs are initial position array, mass array and step size h
 
