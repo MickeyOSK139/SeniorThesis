@@ -1,4 +1,4 @@
-cd("code-fall2025")
+# cd("code-fall2025")
 using Pkg
 # Pkg.add(url="https://github.com/timholy/ProgressMeter.jl.git")
 # Pkg.add("ProgressMeter")
@@ -13,6 +13,7 @@ import XLSX
 Pkg.add("PyPlot")
 using Plots
 using Crayons
+using DelimitedFiles
 
 ################################################################################
 # NestedBinaryFinal_Fast.jl
@@ -60,7 +61,7 @@ Returns
 """
 function Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="hybrid") #This is the highest level function in this file. Plotting L, E, or positions over time, type "L" or "E" to plot those and type a color to plot the orbits
 	#Elist, Llist, lList, Tlist, X1, X2, X3, X4, Y1, Y2, Y3, Y4, Z1, Z2, Z3, Z4, numBodies, hParam, v1x, v1y, v1z, v2x, v2y, v2z, v3x, v3y, v3z, v4x, v4y, v4z, OriginalX, t0, E₁list, E₂list, L₁list, L₂list, periods, timesteps = System(file, fileSave, MemorySave)
-	m, OriginalX, numBodies, timeTaken, hParam, t0, periods, timesteps, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax, E₁exp, E₂exp, L₁exp, L₂exp, X1arr, Y1arr, Z1arr, X2arr, Y2arr, Z2arr, X3arr, Y3arr, Z3arr, i1arr, i2arr, iarr, Lxarr, Lyarr, Lzarr, tarr = System(file, fileSave, Break, MemorySave)
+	m, OriginalX, numBodies, timeTaken, hParam, t0, periods, timesteps, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax, E₁exp, E₂exp, L₁exp, L₂exp, tarr, L₁Xarr, L₁Yarr, L₁Zarr, L₂Xarr, L₂Yarr, L₂Zarr, E₁arr, E₂arr = System(file, fileSave, Break, MemorySave)
 
 	#=stability calculation=#
 	println("\n")
@@ -80,8 +81,9 @@ function Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="
 	record = true
 	dataFileExists = true
 	rowNumber = 0
+
 	if writeData == 0
-		XLSX.openxlsx("NestedBinaryData_New.xlsx",mode="rw") do xf
+		XLSX.openxlsx("code-Fall2025/NestedBinaryData_New.xlsx",mode="rw") do xf
 			sheet = xf[1]
 			i = 1
 			while typeof(sheet["A$i"]) != Missing #gets next blank row
@@ -125,33 +127,35 @@ function Master(file, Break=true, fileSave="AutoSave", writeData=0, MemorySave="
 					sheet["W$i"] = 1
 				end
 				sheet["X$i"] = timesteps
-				sheet["Y$i"] = first(i1arr)
-				sheet["Z$i"] = first(i2arr)
-				sheet["AA$i"] = first(iarr)
 			end
 		end
 	end
 	if MemorySave=="all"
 		dataFileExists = false
 	end
-	pout = plot(X3arr, Y3arr, Z3arr)
-	pin = plot(X1arr, Y1arr, Z1arr)
-	plot!(pin, X2arr, Y2arr, Z2arr)
-	savefig(pout, "OuterOrbit.png")
-	savefig(pin, "InnerOrbit.png")
-	pI1 = plot(tarr, i1arr)
-	plot!(pI1, tarr, i2arr)
-	plot!(pI1, tarr, iarr)
-	savefig(pI1, "PlotInc.png")
-	pL = plot(tarr, Lxarr)
-	plot!(pL, tarr, Lyarr)
-	plot!(pL, tarr, Lzarr)
-	savefig(pL, "PlotL.png")
+
+	
+	# Save tarr and L arrays to CSV file
+	
+	csv_folder = "code-Fall2025/AngularMomentum_CSV"
+	csv_filename = joinpath(csv_folder, "LData_$(rowNumber).csv")
+	n = length(tarr)
+	if n > 0
+		data = [tarr L₁Xarr L₁Yarr L₁Zarr L₂Xarr L₂Yarr L₂Zarr E₁arr E₂arr]
+		try
+			mkpath(csv_folder)
+		catch
+		end
+		writedlm(csv_filename, data, ',')
+	end
+
 
 	return record, dataFileExists, rowNumber, stability #used for autotester
 end
 
 """
+    fileInput(file)
+
 fileInput(file) -> (fArray, XArray, mArray, t, hParam, percent, numBodies, notPeriods)
 
 Parses a .txt configuration file and converts it to the internal arrays used
@@ -206,7 +210,8 @@ function fileInput(file) #change initial conditions to m1, m2, semi-major axis, 
 	return fArray, XArray, mArray, t, hParam, percent, numBodies, notPeriods
 end
 
-"Inputs a file (that is a triple system) and numerically calculates the system's energy and angular momentum versus time, as well as the bodies' positions versus time."
+#"Inputs a file (that is a triple system) and numerically calculates the system's energy and angular momentum versus time, as well as the bodies' positions versus time."
+
 """
 System(file, fileSave, Break, MemorySave="hybrid") -> many values
 
@@ -252,8 +257,8 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 	Y1 = (-(A1*(1 + e1)*M2)/(M1 + M2))*sind(ϕi)-sind(ϕo)*A2*(1+e2)*(M3/M)
 	Y2 = ((A1*(1 + e1)*M1)/(M1 + M2))*sind(ϕi)-sind(ϕo)*A2*(1+e2)*(M3/M)
 	Y3 = sind(ϕo)*A2*(1+e2)*q
-	Z1 = -sind(i)*cosd(ϕo)*(1 + e1)*A2*(M3/M)
-	Z2 = -sind(i)*cosd(ϕo)*(1 + e1)*A2*(M3/M)
+	Z1 = -sind(i)*cosd(ϕo)*(1 + e2)*A2*(M3/M)
+	Z2 = -sind(i)*cosd(ϕo)*(1 + e2)*A2*(M3/M)
 	Z3 = A2*(1 + e2)*sind(i)*cosd(ϕo)*q
 	if numBodies == 4
 		X4 = x[8]
@@ -262,23 +267,14 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 	end
 
 	tarr = []
-	X1arr = []
-	X2arr = []
-	X3arr = []
-	Y1arr = []
-	Y2arr = []
-	Y3arr = []
-	Z1arr = []
-	Z2arr = []
-	Z3arr = []
-	Earr = []
-	Larr = []
-	Lxarr = []
-	Lyarr = []
-	Lzarr = []
-	i1arr = []
-	i2arr = []
-	iarr = []
+	L₁Xarr = []
+	L₁Yarr = []
+	L₁Zarr = []
+	L₂Xarr = []
+	L₂Yarr = []
+	L₂Zarr = []
+	E₁arr = []
+	E₂arr = []
 	
 
 	R₁X = X1
@@ -436,15 +432,15 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 		V₃X = x[16]
 		V₃Y = x[17]
 		V₃Z = x[18]
-		push!(X1arr, R₁X - (M1*R₁X+M2*R₂X)/(M1+M2)) #Push position into an array
-		push!(Y1arr, R₁Y - (M1*R₁Y+M2*R₂Y)/(M1+M2))
-		push!(Z1arr, R₁Z - (M1*R₁Z+M2*R₂Z)/(M1+M2))
-		push!(X2arr, R₂X - (M1*R₁X+M2*R₂X)/(M1+M2))
-		push!(Y2arr, R₂Y - (M1*R₁Y+M2*R₂Y)/(M1+M2))
-		push!(Z2arr, R₂Z - (M1*R₁Z+M2*R₂Z)/(M1+M2))
-		push!(X3arr, x[13])
-		push!(Y3arr, x[14])
-		push!(Z3arr, x[15])
+		# push!(X1arr, R₁X - (M1*R₁X+M2*R₂X)/(M1+M2)) #Push position into an array
+		# push!(Y1arr, R₁Y - (M1*R₁Y+M2*R₂Y)/(M1+M2))
+		# push!(Z1arr, R₁Z - (M1*R₁Z+M2*R₂Z)/(M1+M2))
+		# push!(X2arr, R₂X - (M1*R₁X+M2*R₂X)/(M1+M2))
+		# push!(Y2arr, R₂Y - (M1*R₁Y+M2*R₂Y)/(M1+M2))
+		# push!(Z2arr, R₂Z - (M1*R₁Z+M2*R₂Z)/(M1+M2))
+		# push!(X3arr, x[13])
+		# push!(Y3arr, x[14])
+		# push!(Z3arr, x[15])
 		R₁₂X = R₁X-R₂X
 		R₁₂Y = R₁Y-R₂Y
 		R₁₂Z = R₁Z-R₂Z
@@ -467,13 +463,13 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 		U = -(G*m[1]*m[2]/sqrt(R₁₂X^2+R₁₂Y^2+R₁₂Z^2)+G*m[1]*m[3]/sqrt(R₁₃X^2+R₁₃Y^2+R₁₃Z^2)+G*m[2]*m[3]/sqrt(R₂₃X^2+R₂₃Y^2+R₂₃Z^2)) #total gravitational potential energy
 		Etot = K + U #total energy 
 		E = (Etot-E0)/E0 #fractional energy difference
-		push!(Earr, E)
+		# push!(Earr, E)
 		LX = m[1]*(R₁Y*V₁Z-R₁Z*V₁Y)+m[2]*(R₂Y*V₂Z-R₂Z*V₂Y)+m[3]*(R₃Y*V₃Z-R₃Z*V₃Y)
 		LY = m[1]*(R₁Z*V₁X-R₁X*V₁Z)+m[2]*(R₂Z*V₂X-R₂X*V₂Z)+m[3]*(R₃Z*V₃X-R₃X*V₃Z)
 		LZ = m[1]*(R₁X*V₁Y-R₁Y*V₁X)+m[2]*(R₂X*V₂Y-R₂Y*V₂X)+m[3]*(R₃X*V₃Y-R₃Y*V₃X)
 		Ltot = sqrt(LX^2+LY^2+LZ^2)
 		L = (Ltot-L0)/L0 #fractional angular momentum difference
-		push!(Larr, L)
+		# push!(Larr, L)
 		if L > Lmax
 			LmaxX = LX
 			LmaxY = LY
@@ -521,6 +517,8 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 			CM₁₂Z = (M1*R₁Z+M2*R₂Z)/(M1+M2)
 			E₁ = .5*m[1]*sqrt((V₁X-VINCMX)^2+(V₁Y-VINCMY)^2+(V₁Z-VINCMZ)^2)^2+.5*m[2]*sqrt((V₂X-VINCMX)^2+(V₂Y-VINCMY)^2+(V₂Z-VINCMZ)^2)^2 - G*m[1]*m[2]/sqrt(R₁₂X^2+R₁₂Y^2+R₁₂Z^2)#Energy of inner binary
 			E₂ = .5*(m[1]+m[2])*sqrt(VINCMX^2+VINCMY^2+VINCMZ^2)^2+.5*m[3]*sqrt(V₃X^2+V₃Y^2+V₃Z^2)^2 - G*(m[1]+m[2])*m[3]/(sqrt((R₃X)^2+(R₃Y)^2+(R₃Z)^2)+sqrt((CM₁₂X)^2+(CM₁₂Y)^2+(CM₁₂Z)^2))#Energy of outer binary we don't normalize these now because we need to determine stability of the system
+			push!(E₁arr, E₁)
+			push!(E₂arr, E₂)
 			#E₁ = (E₁-E₁0)/E₁0
 			#E₂ = (E₂-E₂0)/E₂0
 			L₁X = m[1]*((R₁Y-CM₁₂Y)*(V₁Z-VINCMZ)-(R₁Z-CM₁₂Z)*(V₁Y-VINCMY))+m[2]*((R₂Y-CM₁₂Y)*(V₂Z-VINCMZ)-(R₂Z-CM₁₂Z)*(V₂Y-VINCMY))
@@ -529,21 +527,18 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 			L₂X = (m[1]+m[2])*(CM₁₂Y*VINCMZ-CM₁₂Z*VINCMY)+m[3]*(R₃Y*V₃Z-R₃Z*V₃Y)
 			L₂Y = (m[1]+m[2])*(CM₁₂Z*VINCMX-CM₁₂X*VINCMZ)+m[3]*(R₃Z*V₃X-R₃X*V₃Z)
 			L₂Z = (m[1]+m[2])*(CM₁₂X*VINCMY-CM₁₂Y*VINCMX)+m[3]*(R₃X*V₃Y-R₃Y*V₃X)
-			push!(Lxarr, L₁X+L₂X)
-			push!(Lyarr, L₁Y+L₂Y)
-			push!(Lzarr, L₁Z+L₂Z)
+			push!(L₁Xarr, L₁X)
+			push!(L₁Yarr, L₁Y)
+			push!(L₁Zarr, L₁Z)
+			push!(L₂Xarr, L₂X)
+			push!(L₂Yarr, L₂Y)
+			push!(L₂Zarr, L₂Z)
 			L₁ = sqrt(L₁X^2+L₁Y^2+L₁Z^2)
-			i1 = acosd(L₁Z/L₁)
-			# i1 = L₁Z/L₁
-			push!(i1arr, i1)
 			#L₁ = (L₁-L₁0)/L₁X0
 			L₂ = sqrt(L₂X^2+L₂Y^2+L₂Z^2)
-			i2 = acosd(L₂Z/L₂)
-			# i2 = L₂Z/L₂
-			push!(i2arr, i2)
-			imutual = acosd((L₁X*L₂X+L₁Y*L₂Y+L₁Z*L₂Z)/(L₁*L₂))
+			# imutual = acosd((L₁X*L₂X+L₁Y*L₂Y+L₁Z*L₂Z)/(L₁*L₂))
 			# imutual = (L₁X*L₂X+L₁Y*L₂Y+L₁Z*L₂Z)/(L₁*L₂)
-			push!(iarr, imutual)
+			# push!(iarr, imutual)
 			push!(tarr, t0)
 			#L₂ = (L₂-L₂0)/L₂0
 			#=L₁X = (L₁X-L₁X0)/L₁X0
@@ -611,7 +606,7 @@ function System(file, fileSave, Break, MemorySave="hybrid")
 		stability = 1
 	end
 	NowTime = time()
-	return m, OriginalX, numBodies, NowTime-firstTime, hParam, t0, periods, counter, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax, E₁exp, E₂exp, L₁exp, L₂exp, X1arr, Y1arr, Z1arr, X2arr, Y2arr, Z2arr, X3arr, Y3arr, Z3arr, i1arr, i2arr, iarr, Lxarr, Lyarr, Lzarr, tarr
+	return m, OriginalX, numBodies, NowTime-firstTime, hParam, t0, periods, counter, stability, Emin, Emax, Lmin, LminX, LminY, LminZ, Lmax, LmaxX, LmaxY, LmaxZ, E₁0, E₁min, E₁max, E₂0, E₂min, E₂max, L₁0, L₁min, L₁minX, L₁minY, L₁minZ, L₁max, L₁maxX, L₁maxY, L₁maxZ, L₂0, L₂min, L₂minX, L₂minY, L₂minZ, L₂max, L₂maxX, L₂maxY, L₂maxZ, lmin, lmax, E₁exp, E₂exp, L₁exp, L₂exp, tarr, L₁Xarr, L₁Yarr, L₁Zarr, L₂Xarr, L₂Yarr, L₂Zarr, E₁arr, E₂arr
 end
 
 """
@@ -821,4 +816,4 @@ function f6D(x::Array{Float64,1}, m::Array{Float64,1}) #w4
 	return g1/(r1^3) + g2/(r2^3) + g3/(r3^3)
 end
 
-Master("sample.txt")
+Master("code-fall2025/sample.txt")
